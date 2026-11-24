@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#080914">
+<title>The Byan Observatory</title>
+<style>
+:root{--gold:#d8bd83;--cream:#f3e8cf;--ink:#080914}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--ink);color:var(--cream);font-family:Georgia,"Times New Roman",serif;touch-action:none}
+#stage{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+#intro{position:fixed;inset:0;z-index:5;display:grid;place-items:center;text-align:center;padding:28px;background:radial-gradient(ellipse at 50% 38%,#27304c 0%,#101528 38%,#070811 78%)}
+#intro:before{content:"";position:absolute;inset:0;background-image:radial-gradient(1px 1px at 15% 20%,#fff 98%,transparent),radial-gradient(1px 1px at 75% 15%,#e6d3a5 98%,transparent),radial-gradient(1px 1px at 60% 70%,#fff 98%,transparent),radial-gradient(1px 1px at 30% 82%,#fff 98%,transparent);background-size:190px 170px;opacity:.65}
+.intro-inner{position:relative;max-width:520px}.eyebrow{letter-spacing:.34em;text-transform:uppercase;font:10px Arial,sans-serif;color:var(--gold)}
+h1{font-weight:400;font-size:clamp(36px,8vw,64px);line-height:1.02;margin:20px 0 14px;color:#f4e9d2;text-shadow:0 0 28px #d8bd8340}
+.sub{font-style:italic;color:#c9bea7;line-height:1.6;font-size:15px}
+button{font:inherit;color:inherit;cursor:pointer}
+.enter{margin-top:34px;border:1px solid #bca16b;background:#bca16b18;color:#f3e8cf;padding:13px 27px;letter-spacing:.18em;text-transform:uppercase;font:11px Arial,sans-serif;border-radius:2px}
+.enter:active{background:#bca16b55}
+#hud{position:fixed;inset:0;z-index:3;pointer-events:none;display:none}
+.brand{position:absolute;top:calc(env(safe-area-inset-top) + 16px);left:18px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#e5d4ad;text-shadow:0 1px 8px #000}
+#roomLabel{position:absolute;top:calc(env(safe-area-inset-top) + 38px);left:18px;font:9px Arial,sans-serif;letter-spacing:.2em;color:#c2b28f;text-transform:uppercase}
+#hint{position:absolute;top:calc(env(safe-area-inset-top) + 17px);right:16px;font:9px Arial,sans-serif;letter-spacing:.13em;color:#e4d8bf;text-align:right;opacity:.75}
+#crosshair{position:absolute;left:50%;top:50%;width:5px;height:5px;border:1px solid #e8d6ad;border-radius:50%;transform:translate(-50%,-50%);opacity:.7}
+#controls{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 20px);left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center;pointer-events:auto}
+.move{width:58px;height:58px;border-radius:50%;border:1px solid #d6c08e88;background:#10132199;color:#f1e4c6;font-size:22px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);touch-action:none;user-select:none}
+.move:active{background:#b99b6955}
+#zoomControls{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom) + 27px);display:flex;flex-direction:column;gap:9px;pointer-events:auto}
+.zoom{width:39px;height:39px;border:1px solid #d6c08e88;border-radius:50%;background:#10132199;color:#f1e4c6;font-size:19px}
+#musicToggle{position:absolute;right:16px;top:calc(env(safe-area-inset-top) + 60px);pointer-events:auto;border:1px solid #d6c08e66;background:#10132199;color:#e8d9b9;padding:8px 10px;font:9px Arial,sans-serif;letter-spacing:.12em}
+#exhibit{display:none;position:fixed;inset:0;z-index:8;background:#05060bdc;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);place-items:center;padding:22px}
+.exhibit-card{width:min(440px,100%);max-height:90%;overflow:auto;border:1px solid #b99b6977;background:linear-gradient(145deg,#1a1b2b,#0b0d18);padding:18px;box-shadow:0 20px 80px #000}
+.photo-placeholder{aspect-ratio:4/5;max-height:52vh;border:1px solid #b99b6977;background:radial-gradient(ellipse at center,#5b4d43,#211e28 65%,#11121b);display:grid;place-items:center;color:#d7c39a;text-align:center;padding:18px;font-style:italic}
+.exhibit-card h2{font-size:27px;font-weight:400;margin:17px 0 8px}.exhibit-card p{font-size:14px;line-height:1.6;color:#c9bea7}
+.close{margin-top:10px;border:1px solid #b99b69;background:transparent;padding:10px 17px;color:#e9d9b7;font:10px Arial,sans-serif;letter-spacing:.15em}
+#toast{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translateX(-50%);padding:9px 13px;background:#080914cc;border:1px solid #b99b6955;color:#e8d9b9;font:10px Arial,sans-serif;letter-spacing:.08em;white-space:nowrap;opacity:0;transition:opacity .3s}
+#loading{position:fixed;inset:0;z-index:10;display:none;place-items:center;background:#080914;color:#d8bd83;font:11px Arial,sans-serif;letter-spacing:.2em}
+@media(min-width:800px){#controls{left:50%;bottom:28px}.move{width:52px;height:52px}}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<section id="intro">
+ <div class="intro-inner">
+  <div class="eyebrow">A private universe · Est. 2026</div>
+  <h1>The Byan<br>Observatory</h1>
+  <div class="sub">Somewhere among the stars,<br>there is a place that keeps our story.</div>
+  <button class="enter" id="enter">Enter the observatory</button>
+  <div class="eyebrow" style="margin-top:24px;letter-spacing:.16em">A little world made for two</div>
+ </div>
+</section>
+<div id="hud">
+ <div class="brand">The Byan Observatory</div><div id="roomLabel">The Memory Gallery</div>
+ <div id="hint">DRAG TO LOOK · PINCH TO ZOOM</div><div id="crosshair"></div>
+ <button id="musicToggle">♫ MUSIC OFF</button>
+ <div id="controls">
+  <button class="move" id="forward" aria-label="Walk forward">↑</button>
+  <button class="move" id="backward" aria-label="Walk backward">↓</button>
+ </div>
+ <div id="zoomControls"><button class="zoom" id="zoomIn">+</button><button class="zoom" id="zoomOut">−</button></div>
+ <div id="toast"></div>
+</div>
+<div id="exhibit"><div class="exhibit-card">
+ <div class="photo-placeholder" id="photoPlaceholder">Your photograph will live here<br><small>Exhibit image placeholder</small></div>
+ <div class="eyebrow" id="exhibitNo" style="margin-top:17px">EXHIBIT NO. 001</div>
+ <h2 id="exhibitTitle">The Beginning</h2><p id="exhibitText">Every universe has a first star. Replace this text with the story behind your photograph.</p>
+ <button class="close" id="closeExhibit">RETURN TO THE GALLERY</button>
+ </div></div>
+<div id="loading">OPENING THE OBSERVATORY…</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const stage=document.querySelector('#stage'), intro=document.querySelector('#intro'), hud=document.querySelector('#hud');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x080914); scene.fog=new THREE.Fog(0x25283a,32,92);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,100); camera.position.set(0,1.65,7);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7)); renderer.setSize(innerWidth,innerHeight); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=2.0; stage.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xfff1d8,0x77718a,3.0));
+scene.add(new THREE.AmbientLight(0xffe8cf,1.65));
+const gallerySun=new THREE.DirectionalLight(0xffe8c8,2.0);gallerySun.position.set(-3,9,5);scene.add(gallerySun);
+const warm=new THREE.PointLight(0xffd79a,70,48); warm.position.set(0,4,1); scene.add(warm);
+const galleryFill=new THREE.PointLight(0xbac7ff,36,48);galleryFill.position.set(0,3.4,-24);scene.add(galleryFill);
+const observatoryFill=new THREE.PointLight(0xd6c2ff,42,42);observatoryFill.position.set(0,3.2,-54);scene.add(observatoryFill);
+const goldMat=new THREE.MeshStandardMaterial({color:0xb99b69,metalness:.68,roughness:.34});
+const wallMat=new THREE.MeshStandardMaterial({color:0x77758a,roughness:.88,emissive:0x353247,emissiveIntensity:.55});
+const floorMat=new THREE.MeshStandardMaterial({color:0x777080,roughness:.68,emissive:0x292333,emissiveIntensity:.32});
+const darkMat=new THREE.MeshStandardMaterial({color:0x39394f,roughness:.8,emissive:0x171729,emissiveIntensity:.4});
+const objects=[], colliders=[], exhibits=[];
+function box(w,h,d,mat,x,y,z,group=scene){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;group.add(m);return m;}
+function point(x,y,z,color=0xe6c98c,intensity=8,dist=10){const l=new THREE.PointLight(color,intensity,dist);l.position.set(x,y,z);scene.add(l);}
+function addRoom(startZ,endZ,label){
+ // gallery corridor shell; openings remain at both ends
+ box(12,.35,endZ-startZ,floorMat,0,-.2,(startZ+endZ)/2);
+ box(12,.3,endZ-startZ,darkMat,0,4.5,(startZ+endZ)/2);
+ box(.35,4.5,endZ-startZ,wallMat,-6,2.05,(startZ+endZ)/2);
+ box(.35,4.5,endZ-startZ,wallMat,6,2.05,(startZ+endZ)/2);
+ for(let z=startZ-2.5;z>endZ;z-=5){
+  box(12,.13,.18,goldMat,0,4.28,z);
+  // Emissive ceiling fixture (no extra real lights, keeps phones fast).
+  box(.62,.07,.62,new THREE.MeshStandardMaterial({color:0xffe5ad,emissive:0xffc96e,emissiveIntensity:1.8}),0,4.12,z);
+ }
+}
+addRoom(-2,-42,'The Memory Gallery');
+addRoom(-42,-62,'The Constellation Room');
+addRoom(-62,-82,'The Unwritten Room');
+// Add your photos in the /photos folder using these exact filenames.
+// Each image is reused on its matching exhibit frame throughout the gallery.
+const photoFiles=Array.from({length:12},(_,i)=>`photos/byan-${String(i+1).padStart(2,'0')}.jpg`);
+const photoLoader=new THREE.TextureLoader();
+photoLoader.setCrossOrigin('anonymous');
+const photoUrl=name=>new URL('./'+name, document.baseURI).href;
+let loadedPhotoCount=0;
+// Decorative wall pilasters and framed exhibits
+const exhibitData=[
+ ['001','The Helmet and the Bright Sky','Helmet on, eyes calm, and a sky so bright it washed out the whole world around him. Just a quiet moment before the ride, and still the first face in our universe.'],
+ ['002','Window Seat on the Train','A grey sweatshirt, a phone in his hand, and his gaze drifting out the train window as the world rolled past. Some journeys are better because he is on them.'],
+ ['003','Where the Rice Fields Begin','Arms folded on the window ledge, watching green paddies and a cloudy sky slide by. A small, quiet look that says more than a long conversation.'],
+ ['004','The Porch Pause','A striped shirt, cream trousers and white sneakers, perched on a little chair on a wooden porch. Head down, lost in his phone, and completely at ease.'],
+ ['005','Back Row at the Gym','Seen from behind, in a black tee, resting between sets at the gym machines. The discipline nobody applauds, but I notice every time.'],
+ ['006','Mirror, Mirror (Monochrome)','A black-and-white mirror selfie: phone raised, hand on his waistband, a dim room blurred behind him. Confident, a little shy, entirely himself.'],
+ ['007','The First Mirror Frame','A monochrome shot of his back and shoulders reflected in a bathroom mirror, tiles softly glowing behind him. A quiet silhouette in black and white.'],
+ ['008','Tiles and Soft Light','Another black-and-white mirror moment against pale tiles, phone covering half his face. A little mystery, which only makes me want to look longer.'],
+ ['009','Shadows of the Evening','A dim room, his head bowed, shoulders catching the faint light. The kind of stillness that feels like the middle of the night.'],
+ ['010','Under the Rafters','Standing in a dark room beneath old ceiling beams, his back lit softly in monochrome. Strong, calm, and very much his own kind of light.'],
+ ['011','Hands Behind His Back','Black and white again: head tilted down, hands clasped behind him, the shadows of the room folding around his shoulders. Quiet strength, no words needed.'],
+ ['012','The Last Light','Seated on a café stool in a terracotta tee, hands folded, aloe plant at his side and the night glowing behind the glass. A calm look to end the gallery, and the reason for all the stars.']
+];
+function makeFrame(x,y,z,side,index){
+ const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(g);
+ box(1.62,1.95,.12,goldMat,0,0,0,g);
+ box(1.39,1.70,.08,new THREE.MeshStandardMaterial({color:0x171722,roughness:.95}),0,0,.08,g);
+ const fallbackColors=[0x51434a,0x465064,0x655744,0x354c51];
+ const photoMat=new THREE.MeshBasicMaterial({color:fallbackColors[index%4],side:THREE.DoubleSide,toneMapped:false});
+ const photoPath=photoUrl(photoFiles[index%12]);
+ photoLoader.load(photoPath,tex=>{tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();tex.minFilter=THREE.LinearMipmapLinearFilter;tex.magFilter=THREE.LinearFilter;{const fa=1.30/1.60,ia=tex.image.width/tex.image.height;if(ia<fa){tex.repeat.set(1,ia/fa);tex.offset.set(0,(1-ia/fa)*.35);}else{tex.repeat.set(fa/ia,1);tex.offset.set((1-fa/ia)/2,0);}}photoMat.map=tex;photoMat.color.set(0xffffff);photoMat.needsUpdate=true;loadedPhotoCount++;},undefined,err=>{console.error('Could not load exhibit photo:',photoPath,err);});
+ // Place the photo clearly in front of the backing panel to prevent z-fighting.
+ const inner=new THREE.Mesh(new THREE.PlaneGeometry(1.30,1.60),photoMat);inner.position.z=.155;inner.renderOrder=3;g.add(inner);
+ // subtle star ornament
+ const star=new THREE.Mesh(new THREE.OctahedronGeometry(.09),new THREE.MeshStandardMaterial({color:0xe5ce9a,emissive:0x6a4c20}));star.position.set(0,.58,.15);g.add(star);
+ box(.07,.07,.34,goldMat,0,1.12,.17,g);box(.95,.08,.12,goldMat,0,1.12,.34,g);box(.8,.03,.08,new THREE.MeshBasicMaterial({color:0xfff0c8,toneMapped:false}),0,1.07,.34,g);
+ g.userData.exhibit=index; objects.push(g);exhibits.push(g);
+ const plaque=box(.9,.22,.06,goldMat,x,y-1.2,z);plaque.userData.exhibit=index;
+}
+const framePos=[];
+let idx=0;
+// 12 photos = 12 frames (6 per wall), each photo shown exactly once, ending at The Unwritten Room.
+for(let z=-8;z>-76;z-=13){makeFrame(-5.77,2.35,z,-1,idx*2);makeFrame(5.77,2.35,z-6.5,1,idx*2+1);framePos.push({side:-1,z},{side:1,z:z-6.5});idx++;}
+for(let z=-3;z>-80;z-=10){box(.16,4.15,.2,goldMat,-5.65,2,z);box(.16,4.15,.2,goldMat,5.65,2,z);}
+// ================= MUSEUM ORNAMENTS, FURNITURE & VISITORS =================
+const GAL_LEN=80,GAL_MID=-42;
+const tickers=[];
+const glowGold=new THREE.MeshBasicMaterial({color:0xffe2a0,toneMapped:false});
+const velvetMat=new THREE.MeshStandardMaterial({color:0x6b2036,roughness:.95,emissive:0x2a0a14,emissiveIntensity:.5});
+const carpetMat=new THREE.MeshStandardMaterial({color:0x5c2236,roughness:1,emissive:0x2d0f1b,emissiveIntensity:.55});
+const lampGlow=new THREE.MeshStandardMaterial({color:0xfff0c8,emissive:0xffcf80,emissiveIntensity:2.2});
+// crown molding + baseboard along both walls
+for(const sx of [-1,1]){
+ box(.3,.16,GAL_LEN,goldMat,sx*5.68,4.2,GAL_MID);
+ box(.18,.1,GAL_LEN,goldMat,sx*5.74,4.02,GAL_MID);
+ box(.22,.32,GAL_LEN,goldMat,sx*5.7,.14,GAL_MID);
+ box(.14,.1,GAL_LEN,goldMat,sx*5.76,.36,GAL_MID);
+ box(.14,.08,GAL_LEN,goldMat,sx*3.2,4.3,GAL_MID); // coffer rails on ceiling
+}
+// ceiling rosettes between the fixtures
+for(let z=-7;z>-81;z-=5){
+ const r=new THREE.Mesh(new THREE.TorusGeometry(.72,.045,8,40),goldMat);r.rotation.x=Math.PI/2;r.position.set(0,4.31,z);scene.add(r);
+ const r2=new THREE.Mesh(new THREE.TorusGeometry(.4,.03,8,32),goldMat);r2.rotation.x=Math.PI/2;r2.position.set(0,4.31,z);scene.add(r2);
+ const d=new THREE.Mesh(new THREE.OctahedronGeometry(.16),glowGold);d.scale.y=.6;d.position.set(0,4.27,z);scene.add(d);
+}
+// hanging star chandeliers
+const pendants=[];
+for(let z=-12;z>-81;z-=10){
+ if(Math.abs(z+52)<6)continue;
+ const g=new THREE.Group();g.position.set(0,4.35,z);scene.add(g);
+ const chain=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.75,6),goldMat);chain.position.y=-.38;g.add(chain);
+ const star=new THREE.Mesh(new THREE.OctahedronGeometry(.3),new THREE.MeshStandardMaterial({color:0xe5ce9a,emissive:0xffc96e,emissiveIntensity:1.5,metalness:.4,roughness:.3}));star.scale.y=1.6;star.position.y=-1.0;g.add(star);
+ const ring=new THREE.Mesh(new THREE.TorusGeometry(.55,.022,8,48),goldMat);ring.rotation.x=Math.PI/2;ring.position.y=-1.0;g.add(ring);
+ for(let k=0;k<8;k++){const a=k/8*Math.PI*2;const b=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),glowGold);b.position.set(Math.cos(a)*.55,-1.0,Math.sin(a)*.55);g.add(b);}
+ pendants.push({g,star,ring,ph:Math.random()*6});
+}
+tickers.push((t)=>{for(const p of pendants){p.g.rotation.y=t*.25+p.ph;p.g.position.y=4.35+Math.sin(t*.8+p.ph)*.025;}});
+// ceiling star field
+{const n=520,im=new THREE.InstancedMesh(new THREE.SphereGeometry(.03,6,4),new THREE.MeshBasicMaterial({color:0xffefc4,transparent:true,opacity:.9,toneMapped:false}),n);const m=new THREE.Matrix4();
+ for(let i=0;i<n;i++){const s=.6+Math.random()*1.2;m.makeScale(s,s,s);m.setPosition((Math.random()-.5)*11,4.33,-3-Math.random()*78);im.setMatrixAt(i,m);}
+ scene.add(im);tickers.push((t)=>{im.material.opacity=.65+.3*Math.sin(t*1.7);});}
+// carpet runner with gold trim and floor medallions
+box(3.2,.03,GAL_LEN,carpetMat,0,0,GAL_MID);
+for(const sx of [-1,1]){box(.1,.036,GAL_LEN,goldMat,sx*1.65,0,GAL_MID);box(.04,.036,GAL_LEN,goldMat,sx*1.4,0,GAL_MID);}
+for(const z of [-14,-26,-38,-66,-76]){
+ const a=new THREE.Mesh(new THREE.RingGeometry(.9,1.0,48),glowGold);a.rotation.x=-Math.PI/2;a.position.set(0,.025,z);scene.add(a);
+ const b=new THREE.Mesh(new THREE.RingGeometry(.45,.5,6),glowGold);b.rotation.x=-Math.PI/2;b.position.set(0,.026,z);scene.add(b);
+}
+// frame helpers: picture lamps, benches, plants and sconces
+const leftZ=framePos.filter(p=>p.side<0).map(p=>p.z), rightZ=framePos.filter(p=>p.side>0).map(p=>p.z);
+for(const z of leftZ){ // benches facing the left-wall photos
+ box(.5,.12,1.5,velvetMat,-4.05,.5,z);
+ box(.42,.3,1.4,goldMat,-4.05,.25,z);
+ colliders.push({minX:-4.4,maxX:-3.7,minZ:z-.85,maxZ:z+.85});
+}
+function addPlant(x,z){
+ const pot=new THREE.Mesh(new THREE.CylinderGeometry(.27,.2,.5,18),new THREE.MeshStandardMaterial({color:0x8b4a32,roughness:.8}));pot.position.set(x,.25,z);scene.add(pot);
+ const rim=new THREE.Mesh(new THREE.TorusGeometry(.27,.03,8,24),goldMat);rim.rotation.x=Math.PI/2;rim.position.set(x,.5,z);scene.add(rim);
+ const leaf=new THREE.MeshStandardMaterial({color:0x2f7a4d,roughness:.7,emissive:0x0e3320,emissiveIntensity:.5});
+ for(let k=0;k<7;k++){const a=k/7*Math.PI*2;const l=new THREE.Mesh(new THREE.DodecahedronGeometry(.2+Math.random()*.1),leaf);l.position.set(x+Math.cos(a)*.18,.95+Math.random()*.55,z+Math.sin(a)*.18);scene.add(l);}
+ colliders.push({minX:x-.35,maxX:x+.35,minZ:z-.35,maxZ:z+.35});
+}
+function addSconce(sx,z){
+ box(.1,.5,.1,goldMat,sx*5.7,2.6,z);
+ box(.2,.36,.16,lampGlow,sx*5.55,2.95,z);
+ const t=new THREE.Mesh(new THREE.ConeGeometry(.16,.16,4),goldMat);t.position.set(sx*5.55,3.2,z);t.rotation.y=Math.PI/4;scene.add(t);
+}
+for(const z of rightZ){addPlant(-5.0,z);addSconce(-1,z);}
+for(const z of leftZ){addPlant(5.0,z);addSconce(1,z);}
+// signs
+function makeSign(w,h,draw,pw,ph){const c=document.createElement('canvas');c.width=pw;c.height=ph;const x=c.getContext('2d');draw(x,pw,ph);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex,toneMapped:false}));}
+function star4(x,cx,cy,r){x.beginPath();for(let i=0;i<8;i++){const a=i*Math.PI/4-Math.PI/2,rr=i%2?r*.28:r;x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);}x.closePath();x.fill();}
+function signBase(x,w,h){const g=x.createLinearGradient(0,0,w,h);g.addColorStop(0,'#1b1a33');g.addColorStop(1,'#0d0e1d');x.fillStyle=g;x.fillRect(0,0,w,h);x.strokeStyle='#d6bd88';x.lineWidth=6;x.strokeRect(14,14,w-28,h-28);x.lineWidth=2;x.strokeRect(28,28,w-56,h-56);x.fillStyle='#e8d3a0';x.textAlign='center';}
+const entrySign=makeSign(3.1,.92,(x,w,h)=>{signBase(x,w,h);x.font='bold 66px Georgia,serif';try{x.letterSpacing='6px';}catch(e){}x.fillText('THE BYAN OBSERVATORY',w/2,h*.5);x.font='italic 34px Georgia,serif';try{x.letterSpacing='1px';}catch(e){}x.fillText('a little universe, one frame at a time',w/2,h*.78);star4(x,70,h/2,22);star4(x,w-70,h/2,22);},1024,304);
+entrySign.position.set(0,3.98,-1.7);scene.add(entrySign);
+box(5.5,2.9,.1,goldMat,0,2.5,-82.0);
+const endSign=makeSign(5.2,2.6,(x,w,h)=>{signBase(x,w,h);star4(x,w/2,h*.24,60);x.font='bold 60px Georgia,serif';try{x.letterSpacing='5px';}catch(e){}x.fillText('THE UNWRITTEN ROOM',w/2,h*.52);x.font='italic 36px Georgia,serif';try{x.letterSpacing='1px';}catch(e){}x.fillText('Some stories are still being written.',w/2,h*.68);x.fillText('This one is ours.',w/2,h*.79);x.font='26px Georgia,serif';x.fillText('to be continued',w/2,h*.92);},1024,512);
+endSign.position.set(0,2.5,-81.94);scene.add(endSign);
+// dais under the celestial sculpture + orbiting sparkles
+{const base=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.5,.16,48),darkMat);base.position.set(0,.06,-51);scene.add(base);
+ const top=new THREE.Mesh(new THREE.CylinderGeometry(1.9,2.0,.16,48),goldMat);top.position.set(0,.22,-51);scene.add(top);
+ const rg=new THREE.Mesh(new THREE.TorusGeometry(1.6,.03,8,64),glowGold);rg.rotation.x=Math.PI/2;rg.position.set(0,.31,-51);scene.add(rg);
+ colliders.push({minX:-2.5,maxX:2.5,minZ:-53.5,maxZ:-48.5});
+ const pts=[];for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,r=1.8+Math.random()*1.6,y=(Math.random()-.5)*2.4;pts.push(Math.cos(a)*r,y,Math.sin(a)*r);}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+ const sp=new THREE.Points(geo,new THREE.PointsMaterial({color:0xffe6a8,size:.07,transparent:true,opacity:.85}));sp.position.set(0,2.4,-51);scene.add(sp);
+ tickers.push((t,dt)=>{sp.rotation.y+=dt*.12;});}
+// ---- visitors ----
+const vGeo={leg:new THREE.CylinderGeometry(.075,.065,.42,10),torso:new THREE.CylinderGeometry(.2,.16,.6,12),neck:new THREE.CylinderGeometry(.05,.05,.1,8),head:new THREE.SphereGeometry(.115,16,12),hair:new THREE.SphereGeometry(.123,14,10),arm:new THREE.CylinderGeometry(.05,.045,.3,8),hand:new THREE.SphereGeometry(.048,8,6),shoe:new THREE.BoxGeometry(.11,.07,.22),skirt:new THREE.CylinderGeometry(.18,.28,.62,14),drape:new THREE.CylinderGeometry(.15,.24,.4,12)};
+const vMatCache={};const vm=c=>vMatCache[c]||(vMatCache[c]=new THREE.MeshStandardMaterial({color:c,roughness:.85,emissive:c,emissiveIntensity:.18}));
+const visitors=[];
+function makeVisitor(o){
+ const s=o.scale||1,pose=o.pose||'stand',sit=pose==='sit';
+ const root=new THREE.Group();root.position.set(o.x,sit?0:0,o.z);root.scale.setScalar(s);scene.add(root);
+ const hipY=sit?.54:.85;
+ const mk=(geo,mat,x,y,z,p=root)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);p.add(m);return m;};
+ const legs=[];
+ for(const sx of [-1,1]){
+  const th=new THREE.Group();th.position.set(sx*.1,hipY,0);root.add(th);
+  mk(vGeo.leg,vm(o.pants),0,-.21,0,th);
+  const sh=new THREE.Group();sh.position.set(0,-.42,0);th.add(sh);
+  mk(vGeo.leg,vm(o.pants),0,-.21,0,sh);mk(vGeo.shoe,vm(o.shoes||0x222222),0,-.44,.05,sh);
+  if(sit){th.rotation.x=-Math.PI/2;sh.rotation.x=Math.PI/2;}
+  legs.push({th,sh});
+ }
+ if(o.skirt){mk(vGeo.skirt,vm(o.skirt),0,hipY-.2,0);}
+ const body=new THREE.Group();body.position.set(0,hipY,0);root.add(body);
+ mk(vGeo.torso,vm(o.shirt),0,.3,0,body);
+ mk(vGeo.neck,vm(o.skin),0,.64,0,body);
+ const head=new THREE.Group();head.position.set(0,.8,0);body.add(head);
+ const hm=mk(vGeo.head,vm(o.skin),0,0,0,head);hm.scale.y=1.12;
+ if(o.hijab){const h=mk(vGeo.hair,vm(o.hijab),0,.01,-.03,head);h.scale.set(1.12,1.2,1.08);mk(vGeo.drape,vm(o.hijab),0,-.2,-.01,head);}
+ else{const h=mk(vGeo.hair,vm(o.hair),0,.025,-.035,head);h.scale.set(1,.98,1);if(o.ponytail){mk(vGeo.hand,vm(o.hair),0,-.04,-.14,head);}}
+ const arms=[];
+ for(const sx of [-1,1]){
+  const up=new THREE.Group();up.position.set(sx*.245,.58,0);body.add(up);
+  mk(vGeo.arm,vm(o.shirt),0,-.15,0,up);
+  const fo=new THREE.Group();fo.position.set(0,-.3,0);up.add(fo);
+  mk(vGeo.arm,vm(o.sleeve||o.shirt),0,-.15,0,fo);mk(vGeo.hand,vm(o.skin),0,-.32,0,fo);
+  up.rotation.z=sx*.07;
+  arms.push({up,fo,sx});
+ }
+ if(pose==='phone'){for(const a of arms){a.up.rotation.x=-1.0;a.fo.rotation.x=-.7;a.up.rotation.z=a.sx*.25;}
+  mk(new THREE.BoxGeometry(.075,.15,.012),vm(0x111111),0,.55,.46,body).rotation.x=-.1;}
+ if(pose==='chin'){arms[1].up.rotation.x=-.9;arms[1].fo.rotation.x=3.65;arms[0].up.rotation.x=.05;}
+ if(pose==='sit'){for(const a of arms){a.up.rotation.x=-.5;a.fo.rotation.x=-1.0;}}
+ if(o.lookUp)head.rotation.x=-.55;
+ root.rotation.y=Math.atan2(o.tx-o.x,o.tz-o.z);
+ const v={root,body,head,legs,arms,o,ph:Math.random()*6,baseRot:root.rotation.y};
+ visitors.push(v);
+ if(!o.walk&&!o.noCollide)colliders.push({minX:o.x-.3*s,maxX:o.x+.3*s,minZ:o.z-.3*s,maxZ:o.z+.3*s});
+ return v;
+}
+const skinA=0xc99a6e,skinB=0x8d5a3c,skinC=0xe0b48a,skinD=0x6e4430;
+const WL=-5.77,WR=5.77;
+// couple at left photo 3
+makeVisitor({x:-4.95,z:leftZ[2]+1.45,tx:WL,tz:leftZ[2]+1.45,skin:skinC,shirt:0xe9e4d8,hijab:0x3f5f7a,skirt:0x2c3a4a,pants:0x2c3a4a,shoes:0xdddddd});
+makeVisitor({x:-4.95,z:leftZ[2]+2.35,tx:WL,tz:leftZ[2]+.2,skin:skinB,shirt:0x2f4a3d,hair:0x16120f,pants:0x2b2b34,pose:'chin'});
+// seated on a bench looking at left photo 4
+makeVisitor({x:-4.1,z:leftZ[3],tx:WL,tz:leftZ[3],skin:skinA,shirt:0xb5563f,hair:0x201510,pants:0x394a63,ponytail:true,pose:'sit'});
+// photographer at right photo 2
+makeVisitor({x:4.55,z:rightZ[1]-1.7,tx:WR,tz:rightZ[1]-.3,skin:skinD,shirt:0x1f1f2a,hair:0x0d0b0a,pants:0x3b3b46,pose:'phone',shoes:0xf0f0f0});
+// small family at right photo 1
+makeVisitor({x:4.9,z:rightZ[0]+1.5,tx:WR,tz:rightZ[0]+.3,skin:skinC,shirt:0x7c4a8c,hair:0x1a1410,pants:0x333a55});
+makeVisitor({x:4.9,z:rightZ[0]+2.1,tx:WR,tz:rightZ[0]+.3,skin:skinC,shirt:0xe3b34a,hair:0x1a1410,pants:0x2c2c3c,scale:.62});
+// visitors around the celestial sculpture
+makeVisitor({x:-3.15,z:-51,tx:0,tz:-51,skin:skinB,shirt:0x8a3b4b,hair:0x120e0c,pants:0x24242e,lookUp:true});
+makeVisitor({x:2.3,z:-48.1,tx:0,tz:-51,skin:skinC,shirt:0xd8d1bf,skirt:0x4a3f6b,hijab:0x6b4a7a,pants:0x4a3f6b,lookUp:true});
+makeVisitor({x:2.6,z:-54.2,tx:0,tz:-51,skin:skinA,shirt:0x2a4f6b,hair:0x2a1a10,pants:0x1f1f27,lookUp:true,pose:'chin'});
+// at left photo 5 and right photo 5
+makeVisitor({x:-4.95,z:leftZ[4]-1.5,tx:WL,tz:leftZ[4]-.2,skin:skinD,shirt:0xd0c6b0,hair:0x0f0c0a,pants:0x3c3228});
+makeVisitor({x:4.9,z:rightZ[4]-1.5,tx:WR,tz:rightZ[4]-.2,skin:skinA,shirt:0x5b7f64,hair:0x181210,pants:0x2a2a30,pose:'chin'});
+// reading the sign in the last room
+makeVisitor({x:-1.5,z:-78.8,tx:0,tz:-82,skin:skinC,shirt:0xc9534a,hair:0x1a120e,pants:0x2b2f3b});
+makeVisitor({x:1.2,z:-79.2,tx:0,tz:-82,skin:skinB,shirt:0xe6dcc8,hair:0x14100d,pants:0x333340,ponytail:true});
+// two strolling visitors
+const walkers=[makeVisitor({x:-2.4,z:-12,tx:-2.4,tz:-40,skin:skinA,shirt:0x6b8fa8,hair:0x1a1410,pants:0x2a2a35,walk:true}),
+ makeVisitor({x:2.4,z:-70,tx:2.4,tz:-40,skin:skinC,shirt:0xa86b8a,hair:0x2a1c14,pants:0x35313f,ponytail:true,walk:true})];
+walkers[0].dir=-1;walkers[0].zmin=-40;walkers[0].zmax=-8;walkers[1].dir=1;walkers[1].zmin=-76;walkers[1].zmax=-60;
+tickers.push((t,dt)=>{
+ for(const v of visitors){
+  if(v.dir){
+   v.root.position.z+=v.dir*.55*dt;
+   if(v.root.position.z<v.zmin)v.dir=1;if(v.root.position.z>v.zmax)v.dir=-1;
+   v.root.rotation.y=v.dir<0?Math.PI:0;
+   const ph=t*4+v.ph;
+   for(let i=0;i<2;i++){const L=v.legs[i],sg=i?1:-1;L.th.rotation.x=Math.sin(ph)*.5*sg;L.sh.rotation.x=Math.max(0,-Math.sin(ph)*sg)*.7;}
+   for(const a of v.arms){a.up.rotation.x=Math.sin(ph)*.4*(a.sx);}
+   v.body.position.y=.85+Math.abs(Math.sin(ph))*.02;
+  }else{
+   v.body.position.y=(v.o.pose==='sit'?.54:.85)+Math.sin(t*1.3+v.ph)*.006;
+   v.head.rotation.y=Math.sin(t*.35+v.ph)*.28;
+  }
+ }
+});
+
+// central celestial sculpture in observatory room
+const orb=new THREE.Mesh(new THREE.SphereGeometry(.75,32,24),new THREE.MeshStandardMaterial({color:0x9a8058,metalness:.8,roughness:.2,emissive:0x35240e}));orb.position.set(0,2.4,-51);scene.add(orb);
+const ring=new THREE.Mesh(new THREE.TorusGeometry(1.25,.025,8,80),goldMat);ring.position.copy(orb.position);ring.rotation.x=.9;scene.add(ring);
+const starGeo=new THREE.BufferGeometry(), starPts=[];for(let i=0;i<700;i++)starPts.push((Math.random()-.5)*100,Math.random()*22+1,(Math.random()-.5)*150-25);
+starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPts,3));scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xe7d6b0,size:.045,transparent:true,opacity:.7})));
+// far end wall closes the gallery after The Unwritten Room
+box(12,4.5,.35,wallMat,0,2.05,-82.2);
+// Entrance wall across the front (-Z end), with a generous central doorway.
+box(4.35,4.5,.35,wallMat,-3.825,2.05,-1.9);
+box(4.35,4.5,.35,wallMat,3.825,2.05,-1.9);
+box(3.3,1.15,.35,wallMat,0,3.925,-1.9);
+// A softly glowing arch frames the opening without blocking first-person movement.
+for(const x of [-1.72,1.72]){
+ box(.12,3.35,.18,goldMat,x,1.675,-1.68);
+ point(x,2.8,-1.4,0xffd99a,4,6);
+}
+box(3.55,.12,.2,new THREE.MeshStandardMaterial({color:0xffe1a6,emissive:0xd99b45,emissiveIntensity:1.2}),0,3.42,-1.68);
+// collision walls only: side boundaries and room far end
+colliders.push({minX:-5.45,maxX:-5.1,minZ:-83,maxZ:8},{minX:5.1,maxX:5.45,minZ:-83,maxZ:8});
+let yaw=0,pitch=0,zoom=72,walking=0,lookPointer=null,lastX=0,lastY=0,velocity=0,started=false;
+const keys={forward:false,backward:false};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function updateCamera(){camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;camera.fov=zoom;camera.updateProjectionMatrix();}
+function showToast(s){const t=document.querySelector('#toast');t.textContent=s;t.style.opacity=1;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.style.opacity=0,1900);}
+function openExhibit(i){const d=exhibitData[i%exhibitData.length];const photo=document.querySelector('#photoPlaceholder');document.querySelector('#exhibitNo').textContent='EXHIBIT NO. '+d[0];document.querySelector('#exhibitTitle').textContent=d[1];document.querySelector('#exhibitText').textContent=d[2];photo.style.backgroundImage=`url('${photoUrl(photoFiles[i%12])}')`;photo.style.backgroundSize='cover';photo.style.backgroundPosition='center 30%';photo.innerHTML='';document.querySelector('#exhibit').style.display='grid';keys.forward=keys.backward=false;}
+document.querySelector('#closeExhibit').onclick=()=>document.querySelector('#exhibit').style.display='none';
+const raycaster=new THREE.Raycaster();
+renderer.domElement.addEventListener('click',()=>{if(!started||document.querySelector('#exhibit').style.display==='grid')return;raycaster.setFromCamera(new THREE.Vector2(0,0),camera);const hits=raycaster.intersectObjects(objects,true);if(hits.length){let o=hits[0].object;while(o&&!Number.isInteger(o.userData.exhibit))o=o.parent;if(o)openExhibit(o.userData.exhibit);}});
+function bindHold(id,key){const el=document.getElementById(id);el.addEventListener('pointerdown',e=>{e.preventDefault();keys[key]=true;el.setPointerCapture(e.pointerId)});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>el.addEventListener(ev,()=>keys[key]=false));}
+bindHold('forward','forward');bindHold('backward','backward');
+document.querySelector('#zoomIn').onclick=()=>{zoom=clamp(zoom-5,42,82);updateCamera()};
+document.querySelector('#zoomOut').onclick=()=>{zoom=clamp(zoom+5,42,82);updateCamera()};
+let pointers=new Map(),pinchStart=0,pinchZoom=zoom;
+renderer.domElement.addEventListener('pointerdown',e=>{if(!started)return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1){lookPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;}if(pointers.size===2){const a=[...pointers.values()];pinchStart=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);pinchZoom=zoom;}});
+renderer.domElement.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1&&lookPointer===e.pointerId){const dx=e.clientX-lastX,dy=e.clientY-lastY; yaw-=dx*.0042;pitch=clamp(pitch-dy*.0042,-Math.PI/2+.08,Math.PI/2-.08);lastX=e.clientX;lastY=e.clientY;updateCamera();}else if(pointers.size===2){const a=[...pointers.values()];const dist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(pinchStart>0){zoom=clamp(pinchZoom-(dist-pinchStart)*.12,42,82);updateCamera();}}});
+function clearPointer(e){pointers.delete(e.pointerId);if(lookPointer===e.pointerId)lookPointer=null;if(pointers.size===1){const a=[...pointers.values()][0];lastX=a.x;lastY=a.y;lookPointer=[...pointers.keys()][0];}}
+renderer.domElement.addEventListener('pointerup',clearPointer);renderer.domElement.addEventListener('pointercancel',clearPointer);
+const audio=new Audio('audio/coming-up-roses.mp3');audio.loop=true;audio.preload='auto';audio.volume=.55;
+let musicOn=false;const musicBtn=document.querySelector('#musicToggle');
+function setMusicUI(){musicBtn.textContent=musicOn?'♫ MUSIC ON':'♫ MUSIC OFF';}
+async function startMusic(){try{await audio.play();musicOn=true;}catch(err){console.warn('Music could not start:',err);musicOn=false;}setMusicUI();return musicOn;}
+function stopMusic(){audio.pause();musicOn=false;setMusicUI();}
+musicBtn.onclick=async()=>{if(musicOn){stopMusic();showToast('Music paused');}else{const ok=await startMusic();showToast(ok?'Coming Up Roses':'Could not play the music file');}};
+let resumeAfterHide=false;
+document.addEventListener('visibilitychange',()=>{if(document.hidden){resumeAfterHide=musicOn;if(musicOn){audio.pause();}}else if(resumeAfterHide){audio.play().catch(()=>{});resumeAfterHide=false;}});
+function walk(dt){let dir=(keys.forward?1:0)-(keys.backward?1:0);walking=THREE.MathUtils.damp(walking,dir,8,dt);const speed=3.0;const dx=-Math.sin(yaw)*walking*speed*dt,dz=-Math.cos(yaw)*walking*speed*dt;const nx=camera.position.x+dx,nz=camera.position.z+dz;
+ const blocked=colliders.some(c=>nx>c.minX&&nx<c.maxX&&nz>c.minZ&&nz<c.maxZ);
+ const nextZ=clamp(nz,-80.6,5.8);
+ if(!blocked){camera.position.x=clamp(nx,-4.8,4.8);camera.position.z=nextZ;}
+ const bob=Math.abs(walking)>.1?Math.sin(performance.now()*.012)*.035*Math.abs(walking):0;camera.position.y=1.65+bob;
+ const z=camera.position.z;let label=z>-42?'THE MEMORY GALLERY':z>-62?'THE CONSTELLATION ROOM':'THE UNWRITTEN ROOM';document.querySelector('#roomLabel').textContent=label;
+}
+let prev=performance.now();function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-prev)/1000,.05);prev=now;if(started)walk(dt);orb.rotation.y+=dt*.18;ring.rotation.z+=dt*.12;for(const f of tickers)f(now/1000,dt);renderer.render(scene,camera);}requestAnimationFrame(animate);
+document.querySelector('#enter').onclick=()=>{startMusic();started=true;intro.style.display='none';hud.style.display='block';camera.position.set(0,1.65,7);showToast('Drag to look around. Hold ↑ to walk. Photos are loading…');};
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));});
+updateCamera();
+</script>
+</body></html>
